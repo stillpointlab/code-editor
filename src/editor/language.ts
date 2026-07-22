@@ -6,8 +6,6 @@
 import { LanguageDescription } from '@codemirror/language';
 import { languages } from '@codemirror/language-data';
 
-import { reportError } from './log';
-
 import type { Extension } from '@codemirror/state';
 
 /**
@@ -31,8 +29,10 @@ export async function loadLanguage(name: string | null | undefined): Promise<Ext
   try {
     const support = await description.load();
     return support;
-  } catch (err) {
-    reportError('Failed to load code editor language', err);
+  } catch {
+    // Language grammars are optional enhancements. A dynamic import may be
+    // interrupted while the host is navigating, so silently keep the plain-text
+    // fallback rather than surfacing a harmless client error.
     return [];
   }
 }
