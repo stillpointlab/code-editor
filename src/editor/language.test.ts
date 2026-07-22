@@ -32,17 +32,31 @@ describe('findLanguage', () => {
 });
 
 describe('loadLanguage', () => {
-  it('silently falls back to plain text when a grammar fails to load', async () => {
+  it('silently falls back when Firefox reports an interrupted dynamic import', async () => {
     const description = findLanguage('python');
     expect(description).not.toBeNull();
     if (!description) return;
 
     vi.spyOn(description, 'load').mockRejectedValueOnce(
-      new TypeError('dynamic import interrupted')
+      new TypeError('error loading dynamically imported module: http://localhost/chunk.js')
     );
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     await expect(loadLanguage('python')).resolves.toEqual([]);
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it('reports other grammar load failures while falling back to plain text', async () => {
+    const description = findLanguage('python');
+    expect(description).not.toBeNull();
+    if (!description) return;
+
+    const loadError = new TypeError('grammar initialization failed');
+    vi.spyOn(description, 'load').mockRejectedValueOnce(loadError);
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(loadLanguage('python')).resolves.toEqual([]);
+    expect(consoleError).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith('Failed to load code editor language', loadError);
   });
 });

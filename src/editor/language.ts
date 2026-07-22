@@ -6,7 +6,16 @@
 import { LanguageDescription } from '@codemirror/language';
 import { languages } from '@codemirror/language-data';
 
+import { reportError } from './log';
+
 import type { Extension } from '@codemirror/state';
+
+function isInterruptedDynamicImport(err: unknown): boolean {
+  return (
+    err instanceof TypeError &&
+    err.message.toLowerCase().startsWith('error loading dynamically imported module:')
+  );
+}
 
 /**
  * Find the descriptor for a language name (e.g. "python", "JavaScript", "ts").
@@ -29,10 +38,13 @@ export async function loadLanguage(name: string | null | undefined): Promise<Ext
   try {
     const support = await description.load();
     return support;
-  } catch {
-    // Language grammars are optional enhancements. A dynamic import may be
-    // interrupted while the host is navigating, so silently keep the plain-text
-    // fallback rather than surfacing a harmless client error.
+  } catch (err) {
+    // Firefox reports an interrupted dynamic import with this specific TypeError
+    // while the host is navigating. Keep that plain-text fallback silent, but
+    // surface every other grammar failure so genuine defects remain visible.
+    if (!isInterruptedDynamicImport(err)) {
+      reportError('Failed to load code editor language', err);
+    }
     return [];
   }
 }
